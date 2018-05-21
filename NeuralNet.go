@@ -8,6 +8,7 @@ import "flag"
 
 var defaultSize int = 4
 var hiddenLayerHelp string = "How many Neurons in the hidden layer"
+var defaultIterations int = 50000
 
 type neuron struct {
 
@@ -17,11 +18,15 @@ type neuron struct {
 
 }
 
-func newNeuron(l int) neuron {
+func newNeuron(l int, numOfWeights int) neuron {
 
+  weights := []float64{}
+  for i := 0; i < numOfWeights; i++ {
+    rand.Seed(time.Now().UTC().UnixNano())
+    weights = append(weights, rand.Float64() - 0.5)
+  }
   rand.Seed(time.Now().UTC().UnixNano())
-  weights := []float64{rand.Float64(), rand.Float64(), rand.Float64(), rand.Float64()}
-  bais := rand.Float64()
+  bais := rand.Float64() - 0.5
   node := neuron{weights:weights, bais:bais, layer:l}
   return node
 
@@ -31,7 +36,7 @@ func newNeuron(l int) neuron {
 func predict(values [5]float64, nodes []neuron) float64 {
 
   answer := values[len(values) - 1]
-  hiddenLayer := [4]float64{}
+  hiddenLayer := []float64{}
   pred := 0.0
   for i := 0; i < len(nodes); i++ {
     z := nodes[i].bais
@@ -39,7 +44,7 @@ func predict(values [5]float64, nodes []neuron) float64 {
       for j := 0; j < len(nodes[i].weights); j++ {
         z += nodes[i].weights[j] * values[j]
       }
-      hiddenLayer[i] = z
+      hiddenLayer = append(hiddenLayer, z)
     } else {
       pred = nodes[i].bais
       for k := 0; k < len(hiddenLayer); k++ {
@@ -59,17 +64,17 @@ func sigmoid(x float64) float64 {
 }
 
 
-func forwardPass(trainingData [5]float64, nodes []neuron) (float64, [4]float64) {
+func forwardPass(trainingData [5]float64, nodes []neuron) (float64, []float64) {
 
   pred := 0.0
-  hiddenLayer := [4]float64{}
+  hiddenLayer := []float64{}
   for i := 0; i < len(nodes); i++ {
     z := nodes[i].bais
     if nodes[i].layer == 1 {
-      for j := 0; j < len(nodes[i].weights); j++ {
+      for j := 0; j < len(trainingData) - 1; j++ {
         z += nodes[i].weights[j] * trainingData[j]
       }
-      hiddenLayer[i] = z
+      hiddenLayer = append(hiddenLayer, z)
     } else {
       pred = nodes[i].bais
       for k := 0; k < len(hiddenLayer); k++ {
@@ -81,8 +86,7 @@ func forwardPass(trainingData [5]float64, nodes []neuron) (float64, [4]float64) 
 }
 
 
-func trainNN(trainingData [][5]float64, nodes []neuron) {
-  iterations := 50000
+func trainNN(trainingData [][5]float64, nodes []neuron, iterations int) {
   learningRate := 0.1
 
   for i := 0; i < iterations; i++ {
@@ -153,17 +157,24 @@ func trainNN(trainingData [][5]float64, nodes []neuron) {
 
 func main() {
 
-  hiddenLayerSize := flag.Int("Hidden Layer Neurons", defaultSize, hiddenLayerHelp)
+  hiddenLayerSize := flag.Int("HiddenNeurons", defaultSize, hiddenLayerHelp)
+  iterations := flag.Int("Iterations", defaultIterations, "iterations of training")
+  flag.Parse()
 
   predictionData := getPredictionData()
   trainingData := getTrainingData()
 
+  /* The size of inputs is the size of individual set of trainingData minus the
+   * last value which represents the result
+   */
+  inputSize := len(trainingData[0]) - 1
+
   nn := []neuron{}
   for j := 0; j < *hiddenLayerSize; j++ {
-    nn = append(nn, newNeuron(1))
+    nn = append(nn, newNeuron(1, inputSize))
   }
-  nn = append(nn, newNeuron(0))
-  trainNN(trainingData, nn)
+  nn = append(nn, newNeuron(0, *hiddenLayerSize))
+  trainNN(trainingData, nn, *iterations)
 
   totalError := 0.0
 
