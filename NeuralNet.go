@@ -4,22 +4,25 @@ import "fmt"
 import "math"
 import "math/rand"
 import "time"
+import "flag"
 
+var defaultSize int = 4
+var hiddenLayerHelp string = "How many Neurons in the hidden layer"
 
 type neuron struct {
 
-  layer string
+  layer int
   weights []float64
   bais float64
 
 }
 
-func newNeuron(s string) neuron {
+func newNeuron(l int) neuron {
 
   rand.Seed(time.Now().UTC().UnixNano())
   weights := []float64{rand.Float64(), rand.Float64(), rand.Float64(), rand.Float64()}
   bais := rand.Float64()
-  node := neuron{weights:weights, bais:bais, layer:s}
+  node := neuron{weights:weights, bais:bais, layer:l}
   return node
 
 }
@@ -32,7 +35,7 @@ func predict(values [5]float64, nodes []neuron) float64 {
   pred := 0.0
   for i := 0; i < len(nodes); i++ {
     z := nodes[i].bais
-    if nodes[i].layer == "H1" {
+    if nodes[i].layer == 1 {
       for j := 0; j < len(nodes[i].weights); j++ {
         z += nodes[i].weights[j] * values[j]
       }
@@ -46,7 +49,7 @@ func predict(values [5]float64, nodes []neuron) float64 {
   }
   pred = sigmoid(pred)
   error := math.Abs(answer - pred)
-  fmt.Printf("Error: %.4f pred: %.4f target: %.1f\n", error, pred, answer)
+  //fmt.Printf("Error: %.4f pred: %.4f target: %.1f\n", error, pred, answer)
   return error
 }
 
@@ -62,7 +65,7 @@ func forwardPass(trainingData [5]float64, nodes []neuron) (float64, [4]float64) 
   hiddenLayer := [4]float64{}
   for i := 0; i < len(nodes); i++ {
     z := nodes[i].bais
-    if nodes[i].layer == "H1" {
+    if nodes[i].layer == 1 {
       for j := 0; j < len(nodes[i].weights); j++ {
         z += nodes[i].weights[j] * trainingData[j]
       }
@@ -109,7 +112,7 @@ func trainNN(trainingData [][5]float64, nodes []neuron) {
          *  dWl     dWl   dZl   dAl
          *
          */
-        if nodes[l].layer == "final" {
+        if nodes[l].layer == 0 {
 
           dcost_dpred := 2 * (pred - target)
 
@@ -132,7 +135,7 @@ func trainNN(trainingData [][5]float64, nodes []neuron) {
          *  -------  =  ------- x ------ x --- x ---
          *  dW(l-1)     dW(l-1)   dA(l-1)  dZl   dAl
          */
-        if nodes[l].layer == "H1" {
+        if nodes[l].layer == 1 {
 
         dcost_dpred := 2 * (pred - target)
         dpred_dz := sigmoid(z) * (1 - sigmoid(z))
@@ -150,9 +153,16 @@ func trainNN(trainingData [][5]float64, nodes []neuron) {
 
 func main() {
 
+  hiddenLayerSize := flag.Int("Hidden Layer Neurons", defaultSize, hiddenLayerHelp)
+
   predictionData := getPredictionData()
   trainingData := getTrainingData()
-  nn := []neuron{newNeuron("H1"), newNeuron("H1"), newNeuron("H1"), newNeuron("H1"), newNeuron("final")}
+
+  nn := []neuron{}
+  for j := 0; j < *hiddenLayerSize; j++ {
+    nn = append(nn, newNeuron(1))
+  }
+  nn = append(nn, newNeuron(0))
   trainNN(trainingData, nn)
 
   totalError := 0.0
@@ -160,7 +170,7 @@ func main() {
   for i := 0; i < len(predictionData); i++ {
     totalError += predict(predictionData[i], nn)
   }
-  fmt.Println("Average Error:", totalError / 10.0)
+  fmt.Println("Average Error:", totalError / float64(len(predictionData)))
 }
 
 /*  Appendix to back propogation
